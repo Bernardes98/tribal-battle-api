@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: tribal-battle-api
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/tribal_battle}
+    username: ${DB_USERNAME:tribal_battle}
+    password: ${DB_PASSWORD:tribal_battle}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: ${PORT:8080}
+
+app:
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
