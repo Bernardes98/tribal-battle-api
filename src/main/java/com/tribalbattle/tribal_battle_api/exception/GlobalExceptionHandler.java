@@ -1,5 +1,6 @@
 package com.tribalbattle.tribal_battle_api.exception;
 
+import com.tribalbattle.tribal_battle_api.simulationhistory.exception.SimulationHistoryNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -26,9 +27,24 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(InvalidSimulationException.class)
-    public ResponseEntity<ApiErrorResponse> handleInvalidSimulation(
-            InvalidSimulationException exception,
+    @ExceptionHandler(SimulationHistoryNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleSimulationHistoryNotFound(
+            SimulationHistoryNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler({
+            InvalidSimulationException.class,
+            IllegalArgumentException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleBadRequest(
+            RuntimeException exception,
             HttpServletRequest request
     ) {
         return buildResponse(
@@ -60,10 +76,11 @@ public class GlobalExceptionHandler {
                 .getFieldErrors()
                 .stream()
                 .findFirst()
-                .map(fieldError ->
-                        fieldError.getField()
-                                + ": "
-                                + fieldError.getDefaultMessage()
+                .map(
+                        fieldError ->
+                                fieldError.getField()
+                                        + ": "
+                                        + fieldError.getDefaultMessage()
                 )
                 .orElse("Invalid request");
 
@@ -103,13 +120,14 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
-        ApiErrorResponse response = new ApiErrorResponse(
-                Instant.now(),
-                status.value(),
-                status.name(),
-                message,
-                request.getRequestURI()
-        );
+        ApiErrorResponse response =
+                new ApiErrorResponse(
+                        Instant.now(),
+                        status.value(),
+                        status.name(),
+                        message,
+                        request.getRequestURI()
+                );
 
         return ResponseEntity
                 .status(status)
