@@ -12,6 +12,7 @@ public record SimulationHistoryResponse(
         SimulationHistorySource source,
         JsonNode payload,
         JsonNode result,
+        JsonNode reportMetadata,
         Instant createdAt
 ) {
 }

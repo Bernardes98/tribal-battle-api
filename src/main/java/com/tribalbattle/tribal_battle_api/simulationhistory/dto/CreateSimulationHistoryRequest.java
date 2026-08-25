@@ -17,6 +17,8 @@ public record CreateSimulationHistoryRequest(
         @NotNull
         JsonNode payload,
 
-        JsonNode result
+        JsonNode result,
+
+        JsonNode reportMetadata
 ) {
 }

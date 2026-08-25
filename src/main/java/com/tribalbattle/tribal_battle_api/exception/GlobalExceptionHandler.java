@@ -1,5 +1,6 @@
 package com.tribalbattle.tribal_battle_api.exception;
 
+import com.tribalbattle.tribal_battle_api.armypreset.exception.ArmyPresetNotFoundException;
 import com.tribalbattle.tribal_battle_api.simulationhistory.exception.SimulationHistoryNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,6 +31,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SimulationHistoryNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleSimulationHistoryNotFound(
             SimulationHistoryNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(ArmyPresetNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleArmyPresetNotFound(
+            ArmyPresetNotFoundException exception,
             HttpServletRequest request
     ) {
         return buildResponse(

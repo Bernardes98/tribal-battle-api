@@ -46,6 +46,13 @@ public class SimulationHistoryService {
                                                 request.result()
                                         )
                         )
+                        .reportMetadataPayload(
+                                request.reportMetadata() == null
+                                        ? null
+                                        : writeJson(
+                                                request.reportMetadata()
+                                        )
+                        )
                         .build();
 
         return toResponse(
@@ -181,6 +188,11 @@ public class SimulationHistoryService {
                         ? null
                         : readJson(
                                 history.getResultPayload()
+                        ),
+                history.getReportMetadataPayload() == null
+                        ? null
+                        : readJson(
+                                history.getReportMetadataPayload()
                         ),
                 history.getCreatedAt()
         );

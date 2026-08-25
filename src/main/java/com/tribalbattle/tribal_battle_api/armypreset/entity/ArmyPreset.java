@@ -1,4 +1,4 @@
-package com.tribalbattle.tribal_battle_api.simulationhistory.entity;
+package com.tribalbattle.tribal_battle_api.armypreset.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,8 +25,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "simulation_history")
-public class SimulationHistory {
+@Table(name = "army_preset")
+public class ArmyPreset {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -38,30 +39,31 @@ public class SimulationHistory {
     )
     private String clientId;
 
+    @Column(
+            nullable = false,
+            length = 80
+    )
+    private String name;
+
     @Enumerated(EnumType.STRING)
     @Column(
             nullable = false,
-            length = 32
+            length = 16
     )
-    private SimulationHistorySource source;
+    private ArmyPresetType type;
 
     @Column(
+            name = "army_payload",
             nullable = false,
             columnDefinition = "TEXT"
     )
-    private String payload;
+    private String armyPayload;
 
     @Column(
-            name = "result_payload",
+            name = "context_payload",
             columnDefinition = "TEXT"
     )
-    private String resultPayload;
-
-    @Column(
-            name = "report_metadata",
-            columnDefinition = "TEXT"
-    )
-    private String reportMetadataPayload;
+    private String contextPayload;
 
     @Column(
             name = "created_at",
@@ -70,10 +72,25 @@ public class SimulationHistory {
     )
     private Instant createdAt;
 
+    @Column(
+            name = "updated_at",
+            nullable = false
+    )
+    private Instant updatedAt;
+
     @PrePersist
     public void prePersist() {
+        Instant now = Instant.now();
+
         if (createdAt == null) {
-            createdAt = Instant.now();
+            createdAt = now;
         }
+
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = Instant.now();
     }
 }

@@ -72,6 +72,14 @@ class SimulationHistoryIntegrationTest {
                 .andExpect(
                         jsonPath("$[0].payload.attacker.axe")
                                 .value(1000)
+                )
+                .andExpect(
+                        jsonPath("$[0].reportMetadata.attacker.player")
+                                .value("FelipeG98")
+                )
+                .andExpect(
+                        jsonPath("$[0].reportMetadata.defender.coordinates.x")
+                                .value(501)
                 );
     }
 
@@ -146,6 +154,24 @@ class SimulationHistoryIntegrationTest {
                   },
                   "result": {
                     "winner": "ATTACKER"
+                  },
+                  "reportMetadata": {
+                    "attacker": {
+                      "player": "FelipeG98",
+                      "village": "[001] F",
+                      "coordinates": {
+                        "x": 499,
+                        "y": 511
+                      }
+                    },
+                    "defender": {
+                      "player": "SolRain",
+                      "village": "Salvihyard",
+                      "coordinates": {
+                        "x": 501,
+                        "y": 516
+                      }
+                    }
                   }
                 }
                 """.formatted(

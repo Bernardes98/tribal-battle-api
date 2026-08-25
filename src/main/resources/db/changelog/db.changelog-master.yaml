@@ -4,3 +4,9 @@ databaseChangeLog:
 
   - include:
       file: db/changelog/changes/002-create-simulation-history.yaml
+
+  - include:
+      file: db/changelog/changes/003-create-army-preset.yaml
+
+  - include:
+      file: db/changelog/changes/004-add-report-context.yaml

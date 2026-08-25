@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-add-report-context
+      author: felipe
+      changes:
+        - addColumn:
+            tableName: simulation_history
+            columns:
+              - column:
+                  name: report_metadata
+                  type: TEXT
+
+        - addColumn:
+            tableName: army_preset
+            columns:
+              - column:
+                  name: context_payload
+                  type: TEXT
