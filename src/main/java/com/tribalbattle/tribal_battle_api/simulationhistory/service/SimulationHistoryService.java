@@ -2,6 +2,7 @@ package com.tribalbattle.tribal_battle_api.simulationhistory.service;
 
 import com.tribalbattle.tribal_battle_api.auth.entity.AppUser;
 import com.tribalbattle.tribal_battle_api.auth.service.AuthService;
+import com.tribalbattle.tribal_battle_api.intelligence.service.IntelligenceIngestionService;
 import com.tribalbattle.tribal_battle_api.simulationhistory.dto.BulkDeleteSimulationHistoryResponse;
 import com.tribalbattle.tribal_battle_api.simulationhistory.dto.ClaimSimulationHistoryResponse;
 import com.tribalbattle.tribal_battle_api.simulationhistory.dto.CreateSimulationHistoryRequest;
@@ -42,6 +43,8 @@ public class SimulationHistoryService {
     private final ObjectMapper objectMapper;
 
     private final AuthService authService;
+
+    private final IntelligenceIngestionService intelligenceIngestionService;
 
     /*
      * Compatibility overload used by older tests/internal callers.
@@ -136,9 +139,13 @@ public class SimulationHistoryService {
                         )
                         .build();
 
-        return toResponse(
-                repository.save(history)
-        );
+        SimulationHistory saved = repository.save(history);
+
+        if (saved.getUserId() != null) {
+            intelligenceIngestionService.ingest(saved);
+        }
+
+        return toResponse(saved);
     }
 
     public List<SimulationHistoryResponse> list(

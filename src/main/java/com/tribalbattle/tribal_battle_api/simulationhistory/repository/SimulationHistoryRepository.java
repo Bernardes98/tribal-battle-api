@@ -54,6 +54,15 @@ public interface SimulationHistoryRepository
             UUID userId
     );
 
+    long countByUserIdAndReportMetadataPayloadIsNotNull(
+            UUID userId
+    );
+
+    List<SimulationHistory>
+    findByUserIdAndReportMetadataPayloadIsNotNullOrderByCreatedAtAsc(
+            UUID userId
+    );
+
     @Modifying(
             clearAutomatically = true,
             flushAutomatically = true

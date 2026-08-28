@@ -1,0 +1,357 @@
+
+databaseChangeLog:
+  - changeSet:
+      id: 012-intelligence-server-side
+      author: felipe
+      changes:
+        - createTable:
+            tableName: intelligence_player
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_player
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: normalized_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_player
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_player_user
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: intelligence_player
+            columnNames: user_id, normalized_name
+            constraintName: uk_intelligence_player_user_name
+
+        - createTable:
+            tableName: intelligence_village
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_village
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: player_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: village_key
+                  type: VARCHAR(600)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: normalized_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: x
+                  type: INTEGER
+              - column:
+                  name: y
+                  type: INTEGER
+              - column:
+                  name: last_seen_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_village
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_village_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_village
+            baseColumnNames: player_id
+            referencedTableName: intelligence_player
+            referencedColumnNames: id
+            constraintName: fk_intelligence_village_player
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: intelligence_village
+            columnNames: user_id, village_key
+            constraintName: uk_intelligence_village_user_key
+        - createIndex:
+            tableName: intelligence_village
+            indexName: idx_intelligence_village_user_seen
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: last_seen_at
+
+        - createTable:
+            tableName: intelligence_report
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_report
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: village_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: simulation_history_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: result_payload
+                  type: TEXT
+              - column:
+                  name: report_metadata
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: observed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_report
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_report_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_report
+            baseColumnNames: village_id
+            referencedTableName: intelligence_village
+            referencedColumnNames: id
+            constraintName: fk_intelligence_report_village
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_report
+            baseColumnNames: simulation_history_id
+            referencedTableName: simulation_history
+            referencedColumnNames: id
+            constraintName: fk_intelligence_report_history
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: intelligence_report
+            columnNames: simulation_history_id
+            constraintName: uk_intelligence_report_history
+        - createIndex:
+            tableName: intelligence_report
+            indexName: idx_intelligence_report_user_observed
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: observed_at
+        - createIndex:
+            tableName: intelligence_report
+            indexName: idx_intelligence_report_village_observed
+            columns:
+              - column:
+                  name: village_id
+              - column:
+                  name: observed_at
+
+        - createTable:
+            tableName: intelligence_watchlist_settings
+            columns:
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_watchlist_settings
+              - column:
+                  name: alert_threshold_percent
+                  type: INTEGER
+                  defaultValueNumeric: 25
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_watchlist_settings
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_watchlist_settings_user
+            onDelete: CASCADE
+
+        - createTable:
+            tableName: intelligence_watchlist_entry
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_watchlist_entry
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: village_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_watchlist_entry
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_watchlist_entry_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_watchlist_entry
+            baseColumnNames: village_id
+            referencedTableName: intelligence_village
+            referencedColumnNames: id
+            constraintName: fk_intelligence_watchlist_entry_village
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: intelligence_watchlist_entry
+            columnNames: user_id, village_id
+            constraintName: uk_intelligence_watchlist_entry_user_village
+
+        - createTable:
+            tableName: intelligence_village_annotation
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_intelligence_village_annotation
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: village_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tags_payload
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: note
+                  type: VARCHAR(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_village_annotation
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_intelligence_annotation_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: intelligence_village_annotation
+            baseColumnNames: village_id
+            referencedTableName: intelligence_village
+            referencedColumnNames: id
+            constraintName: fk_intelligence_annotation_village
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: intelligence_village_annotation
+            columnNames: user_id, village_id
+            constraintName: uk_intelligence_annotation_user_village
