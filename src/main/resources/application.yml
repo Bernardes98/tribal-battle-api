@@ -9,10 +9,8 @@ spring:
 
   jpa:
     open-in-view: false
-
     hibernate:
       ddl-auto: validate
-
     properties:
       hibernate:
         format_sql: true
@@ -28,11 +26,12 @@ server:
 
 app:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  auth:
+    session-hours: ${AUTH_SESSION_HOURS:168}
 
 springdoc:
   api-docs:
     path: /api-docs
-
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method

@@ -1,4 +1,5 @@
 databaseChangeLog:
+
   - include:
       file: db/changelog/changes/001-create-shared-simulation.yaml
 
@@ -10,3 +11,6 @@ databaseChangeLog:
 
   - include:
       file: db/changelog/changes/004-add-report-context.yaml
+
+  - include:
+      file: db/changelog/changes/005-create-auth-account.yaml
