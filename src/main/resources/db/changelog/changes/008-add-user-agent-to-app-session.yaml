@@ -1,0 +1,25 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 008-add-user-agent-to-app-session
+      author: tribal-battle
+      changes:
+
+        - addColumn:
+            tableName: app_session
+            columns:
+
+              - column:
+                  name: user_agent
+                  type: VARCHAR(500)
+
+        - createIndex:
+            tableName: app_session
+            indexName: idx_app_session_user_expires
+            columns:
+
+              - column:
+                  name: user_id
+
+              - column:
+                  name: expires_at

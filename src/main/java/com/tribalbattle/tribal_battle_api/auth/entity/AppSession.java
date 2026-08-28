@@ -43,6 +43,12 @@ public class AppSession {
     private String tokenHash;
 
     @Column(
+            name = "user_agent",
+            length = 500
+    )
+    private String userAgent;
+
+    @Column(
             name = "created_at",
             nullable = false
     )

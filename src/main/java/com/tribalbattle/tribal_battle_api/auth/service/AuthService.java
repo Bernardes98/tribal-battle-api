@@ -1,9 +1,11 @@
 package com.tribalbattle.tribal_battle_api.auth.service;
 
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.AuthSessionInfoResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthUserResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.LoginRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RegisterRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.RevokeOtherSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.entity.AppSession;
 import com.tribalbattle.tribal_battle_api.auth.entity.AppUser;
 import com.tribalbattle.tribal_battle_api.auth.repository.AppSessionRepository;
@@ -23,7 +25,9 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,8 +43,24 @@ public class AuthService {
     @Value("${app.auth.session-hours:168}")
     private long sessionHours;
 
+    /*
+     * Compatibility overload retained for existing tests/internal callers.
+     */
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(
+            RegisterRequest request
+    ) {
+        return register(
+                request,
+                null
+        );
+    }
+
+    @Transactional
+    public AuthResponse register(
+            RegisterRequest request,
+            String userAgent
+    ) {
         String email = normalizeEmail(
                 request.email()
         );
@@ -68,11 +88,30 @@ public class AuthService {
 
         userRepository.save(user);
 
-        return createSession(user);
+        return createSession(
+                user,
+                userAgent
+        );
+    }
+
+    /*
+     * Compatibility overload retained for existing tests/internal callers.
+     */
+    @Transactional
+    public AuthResponse login(
+            LoginRequest request
+    ) {
+        return login(
+                request,
+                null
+        );
     }
 
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(
+            LoginRequest request,
+            String userAgent
+    ) {
         String email = normalizeEmail(
                 request.email()
         );
@@ -90,11 +129,16 @@ public class AuthService {
             throw invalidCredentials();
         }
 
-        return createSession(user);
+        return createSession(
+                user,
+                userAgent
+        );
     }
 
     @Transactional(readOnly = true)
-    public AuthUserResponse me(String authorizationHeader) {
+    public AuthUserResponse me(
+            String authorizationHeader
+    ) {
         return toResponse(
                 requireUser(
                         requireBearerToken(
@@ -105,7 +149,9 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String authorizationHeader) {
+    public void logout(
+            String authorizationHeader
+    ) {
         String token =
                 requireBearerToken(
                         authorizationHeader
@@ -117,23 +163,119 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public AppUser requireUser(String rawToken) {
+    public List<AuthSessionInfoResponse> sessions(
+            String authorizationHeader
+    ) {
+        String token =
+                requireBearerToken(
+                        authorizationHeader
+                );
+
+        AppSession currentSession =
+                requireSession(token);
+
         Instant now =
                 Instant.now();
 
-        AppSession session =
+        return sessionRepository
+                .findByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(
+                        currentSession.getUserId(),
+                        now
+                )
+                .stream()
+                .map(
+                        session ->
+                                new AuthSessionInfoResponse(
+                                        session.getId(),
+                                        session.getUserAgent(),
+                                        session.getCreatedAt(),
+                                        session.getExpiresAt(),
+                                        session
+                                                .getId()
+                                                .equals(
+                                                        currentSession.getId()
+                                                )
+                                )
+                )
+                .toList();
+    }
+
+    @Transactional
+    public void revokeSession(
+            String authorizationHeader,
+            UUID sessionId
+    ) {
+        String token =
+                requireBearerToken(
+                        authorizationHeader
+                );
+
+        AppSession currentSession =
+                requireSession(token);
+
+        AppSession target =
                 sessionRepository
-                        .findByTokenHashAndExpiresAtAfter(
-                                sha256(rawToken),
-                                now
+                        .findByIdAndUserId(
+                                sessionId,
+                                currentSession.getUserId()
                         )
                         .orElseThrow(
-                                this::unauthorized
+                                this::sessionNotFound
                         );
+
+        sessionRepository.delete(target);
+    }
+
+    @Transactional
+    public RevokeOtherSessionsResponse revokeOtherSessions(
+            String authorizationHeader
+    ) {
+        String token =
+                requireBearerToken(
+                        authorizationHeader
+                );
+
+        AppSession currentSession =
+                requireSession(token);
+
+        long revokedCount =
+                sessionRepository
+                        .deleteByUserIdAndIdNot(
+                                currentSession.getUserId(),
+                                currentSession.getId()
+                        );
+
+        return new RevokeOtherSessionsResponse(
+                revokedCount
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AppUser requireUser(
+            String rawToken
+    ) {
+        AppSession session =
+                requireSession(
+                        rawToken
+                );
 
         return userRepository
                 .findById(
                         session.getUserId()
+                )
+                .orElseThrow(
+                        this::unauthorized
+                );
+    }
+
+    @Transactional(readOnly = true)
+    public AppSession requireSession(
+            String rawToken
+    ) {
+        return sessionRepository
+                .findByTokenHashAndExpiresAtAfter(
+                        sha256(rawToken),
+                        Instant.now()
                 )
                 .orElseThrow(
                         this::unauthorized
@@ -167,7 +309,8 @@ public class AuthService {
     }
 
     private AuthResponse createSession(
-            AppUser user
+            AppUser user,
+            String userAgent
     ) {
         Instant now =
                 Instant.now();
@@ -196,6 +339,11 @@ public class AuthService {
                         )
                         .tokenHash(
                                 sha256(token)
+                        )
+                        .userAgent(
+                                normalizeUserAgent(
+                                        userAgent
+                                )
                         )
                         .createdAt(now)
                         .expiresAt(
@@ -230,6 +378,27 @@ public class AuthService {
                 .trim()
                 .toLowerCase(
                         Locale.ROOT
+                );
+    }
+
+    private String normalizeUserAgent(
+            String userAgent
+    ) {
+        if (
+                userAgent == null ||
+                userAgent.isBlank()
+        ) {
+            return null;
+        }
+
+        String normalized =
+                userAgent.trim();
+
+        return normalized.length() <= 500
+                ? normalized
+                : normalized.substring(
+                        0,
+                        500
                 );
     }
 
@@ -289,6 +458,13 @@ public class AuthService {
         return new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
                 "Authentication is required."
+        );
+    }
+
+    private ResponseStatusException sessionNotFound() {
+        return new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Session was not found for this account."
         );
     }
 }

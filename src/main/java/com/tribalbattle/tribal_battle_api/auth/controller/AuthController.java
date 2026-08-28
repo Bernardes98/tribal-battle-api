@@ -1,9 +1,11 @@
 package com.tribalbattle.tribal_battle_api.auth.controller;
 
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.AuthSessionInfoResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthUserResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.LoginRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RegisterRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.RevokeOtherSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,12 +14,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -37,13 +44,20 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(
             @Valid
             @RequestBody
-            RegisterRequest request
+            RegisterRequest request,
+
+            @RequestHeader(
+                    value = HttpHeaders.USER_AGENT,
+                    required = false
+            )
+            String userAgent
     ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(
                         service.register(
-                                request
+                                request,
+                                userAgent
                         )
                 );
     }
@@ -55,11 +69,18 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(
             @Valid
             @RequestBody
-            LoginRequest request
+            LoginRequest request,
+
+            @RequestHeader(
+                    value = HttpHeaders.USER_AGENT,
+                    required = false
+            )
+            String userAgent
     ) {
         return ResponseEntity.ok(
                 service.login(
-                        request
+                        request,
+                        userAgent
                 )
         );
     }
@@ -100,5 +121,65 @@ public class AuthController {
         return ResponseEntity
                 .noContent()
                 .build();
+    }
+
+    @GetMapping("/sessions")
+    @Operation(
+            summary = "List active account sessions"
+    )
+    public ResponseEntity<List<AuthSessionInfoResponse>> sessions(
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        return ResponseEntity.ok(
+                service.sessions(
+                        authorizationHeader
+                )
+        );
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    @Operation(
+            summary = "Revoke one account session"
+    )
+    public ResponseEntity<Void> revokeSession(
+            @PathVariable
+            UUID sessionId,
+
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        service.revokeSession(
+                authorizationHeader,
+                sessionId
+        );
+
+        return ResponseEntity
+                .noContent()
+                .build();
+    }
+
+    @PostMapping("/sessions/revoke-others")
+    @Operation(
+            summary = "Revoke every session except the current session"
+    )
+    public ResponseEntity<RevokeOtherSessionsResponse> revokeOtherSessions(
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        return ResponseEntity.ok(
+                service.revokeOtherSessions(
+                        authorizationHeader
+                )
+        );
     }
 }
