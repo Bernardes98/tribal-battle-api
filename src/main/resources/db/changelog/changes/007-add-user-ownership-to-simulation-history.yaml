@@ -1,0 +1,33 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 007-add-user-ownership-to-simulation-history
+      author: tribal-battle
+      changes:
+
+        - addColumn:
+            tableName: simulation_history
+            columns:
+
+              - column:
+                  name: user_id
+                  type: UUID
+
+        - addForeignKeyConstraint:
+            baseTableName: simulation_history
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_simulation_history_user
+            onDelete: CASCADE
+
+        - createIndex:
+            tableName: simulation_history
+            indexName: idx_simulation_history_user_created
+            columns:
+
+              - column:
+                  name: user_id
+
+              - column:
+                  name: created_at
