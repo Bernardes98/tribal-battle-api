@@ -13,6 +13,7 @@ public record SimulationHistoryResponse(
         JsonNode payload,
         JsonNode result,
         JsonNode reportMetadata,
+        boolean favorite,
         Instant createdAt
 ) {
 }

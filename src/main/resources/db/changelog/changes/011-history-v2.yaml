@@ -1,0 +1,61 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 011-history-v2
+      author: tribal-battle
+      changes:
+
+        - addColumn:
+            tableName: simulation_history
+            columns:
+
+              - column:
+                  name: favorite
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: attacker_player_name
+                  type: VARCHAR(255)
+
+              - column:
+                  name: defender_player_name
+                  type: VARCHAR(255)
+
+              - column:
+                  name: attacker_village_name
+                  type: VARCHAR(255)
+
+              - column:
+                  name: defender_village_name
+                  type: VARCHAR(255)
+
+        - createIndex:
+            tableName: simulation_history
+            indexName: idx_simulation_history_user_favorite_created
+            columns:
+
+              - column:
+                  name: user_id
+
+              - column:
+                  name: favorite
+
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: simulation_history
+            indexName: idx_simulation_history_client_favorite_created
+            columns:
+
+              - column:
+                  name: client_id
+
+              - column:
+                  name: favorite
+
+              - column:
+                  name: created_at

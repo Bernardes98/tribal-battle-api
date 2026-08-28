@@ -68,6 +68,36 @@ public class SimulationHistory {
     )
     private String reportMetadataPayload;
 
+    @Builder.Default
+    @Column(
+            nullable = false
+    )
+    private boolean favorite = false;
+
+    @Column(
+            name = "attacker_player_name",
+            length = 255
+    )
+    private String attackerPlayerName;
+
+    @Column(
+            name = "defender_player_name",
+            length = 255
+    )
+    private String defenderPlayerName;
+
+    @Column(
+            name = "attacker_village_name",
+            length = 255
+    )
+    private String attackerVillageName;
+
+    @Column(
+            name = "defender_village_name",
+            length = 255
+    )
+    private String defenderVillageName;
+
     @Column(
             name = "created_at",
             nullable = false,

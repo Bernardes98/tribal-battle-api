@@ -2,6 +2,7 @@ package com.tribalbattle.tribal_battle_api.simulationhistory.repository;
 
 import com.tribalbattle.tribal_battle_api.simulationhistory.entity.SimulationHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +12,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SimulationHistoryRepository
-        extends JpaRepository<SimulationHistory, UUID> {
+        extends JpaRepository<SimulationHistory, UUID>,
+        JpaSpecificationExecutor<SimulationHistory> {
 
     /*
      * Kept for compatibility with existing tests / internal callers.

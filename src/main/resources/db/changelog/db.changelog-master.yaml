@@ -29,3 +29,6 @@ databaseChangeLog:
 
   - include:
       file: db/changelog/changes/010-cloud-backup-versions.yaml
+
+  - include:
+      file: db/changelog/changes/011-history-v2.yaml
