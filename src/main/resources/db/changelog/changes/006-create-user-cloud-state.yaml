@@ -1,0 +1,51 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 006-create-user-cloud-state
+      author: tribal-battle
+      changes:
+
+        - createTable:
+            tableName: user_cloud_state
+            columns:
+
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: revision
+                  type: BIGINT
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: payload
+                  type: TEXT
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: user_cloud_state
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_user_cloud_state_user
+            onDelete: CASCADE
+
+        - createIndex:
+            tableName: user_cloud_state
+            indexName: idx_user_cloud_state_updated_at
+            columns:
+              - column:
+                  name: updated_at
