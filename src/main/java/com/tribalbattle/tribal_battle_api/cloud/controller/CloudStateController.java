@@ -1,6 +1,8 @@
 package com.tribalbattle.tribal_battle_api.cloud.controller;
 
 import com.tribalbattle.tribal_battle_api.cloud.dto.CloudStateResponse;
+import com.tribalbattle.tribal_battle_api.cloud.dto.CloudStateVersionResponse;
+import com.tribalbattle.tribal_battle_api.cloud.dto.RestoreCloudStateRequest;
 import com.tribalbattle.tribal_battle_api.cloud.dto.SaveCloudStateRequest;
 import com.tribalbattle.tribal_battle_api.cloud.service.CloudStateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,11 +13,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/cloud/state")
@@ -46,6 +52,24 @@ public class CloudStateController {
         );
     }
 
+    @GetMapping("/versions")
+    @Operation(
+            summary = "List current and recoverable cloud snapshot revisions"
+    )
+    public ResponseEntity<List<CloudStateVersionResponse>> versions(
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        return ResponseEntity.ok(
+                service.versions(
+                        authorizationHeader
+                )
+        );
+    }
+
     @PutMapping
     @Operation(
             summary = "Create or replace cloud snapshot using optimistic revision"
@@ -69,9 +93,36 @@ public class CloudStateController {
         );
     }
 
+    @PostMapping("/versions/{revision}/restore")
+    @Operation(
+            summary = "Restore an earlier snapshot as a new current revision"
+    )
+    public ResponseEntity<CloudStateResponse> restore(
+            @PathVariable
+            long revision,
+
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader,
+
+            @Valid
+            @RequestBody
+            RestoreCloudStateRequest request
+    ) {
+        return ResponseEntity.ok(
+                service.restore(
+                        authorizationHeader,
+                        revision,
+                        request
+                )
+        );
+    }
+
     @DeleteMapping
     @Operation(
-            summary = "Delete current account cloud snapshot"
+            summary = "Archive and delete the current account cloud snapshot"
     )
     public ResponseEntity<Void> delete(
             @RequestHeader(

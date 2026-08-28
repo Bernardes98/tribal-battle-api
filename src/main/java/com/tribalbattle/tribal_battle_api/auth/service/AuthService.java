@@ -3,11 +3,15 @@ package com.tribalbattle.tribal_battle_api.auth.service;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthSessionInfoResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthUserResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.LoginRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RegisterRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.RevokeAllSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.RevokeOtherSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.entity.AppSession;
 import com.tribalbattle.tribal_battle_api.auth.entity.AppUser;
+import com.tribalbattle.tribal_battle_api.auth.exception.AuthException;
 import com.tribalbattle.tribal_battle_api.auth.repository.AppSessionRepository;
 import com.tribalbattle.tribal_battle_api.auth.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -66,8 +69,9 @@ public class AuthService {
         );
 
         if (userRepository.existsByEmail(email)) {
-            throw new ResponseStatusException(
+            throw new AuthException(
                     HttpStatus.CONFLICT,
+                    "ACCOUNT_ALREADY_EXISTS",
                     "An account already exists for this email."
             );
         }
@@ -250,6 +254,93 @@ public class AuthService {
         );
     }
 
+    @Transactional
+    public ChangePasswordResponse changePassword(
+            String authorizationHeader,
+            ChangePasswordRequest request
+    ) {
+        String token =
+                requireBearerToken(
+                        authorizationHeader
+                );
+
+        AppSession currentSession =
+                requireSession(token);
+
+        AppUser user =
+                userRepository
+                        .findById(
+                                currentSession.getUserId()
+                        )
+                        .orElseThrow(
+                                this::sessionRevoked
+                        );
+
+        if (!passwordEncoder.matches(
+                request.currentPassword(),
+                user.getPasswordHash()
+        )) {
+            throw new AuthException(
+                    HttpStatus.BAD_REQUEST,
+                    "CURRENT_PASSWORD_INVALID",
+                    "Current password is incorrect."
+            );
+        }
+
+        if (passwordEncoder.matches(
+                request.newPassword(),
+                user.getPasswordHash()
+        )) {
+            throw new AuthException(
+                    HttpStatus.BAD_REQUEST,
+                    "NEW_PASSWORD_REUSED",
+                    "New password must be different from the current password."
+            );
+        }
+
+        user.setPasswordHash(
+                passwordEncoder.encode(
+                        request.newPassword()
+                )
+        );
+
+        userRepository.save(user);
+
+        long revokedSessions =
+                sessionRepository
+                        .deleteByUserIdAndIdNot(
+                                currentSession.getUserId(),
+                                currentSession.getId()
+                        );
+
+        return new ChangePasswordResponse(
+                revokedSessions
+        );
+    }
+
+    @Transactional
+    public RevokeAllSessionsResponse revokeAllSessions(
+            String authorizationHeader
+    ) {
+        String token =
+                requireBearerToken(
+                        authorizationHeader
+                );
+
+        AppSession currentSession =
+                requireSession(token);
+
+        long revokedCount =
+                sessionRepository
+                        .deleteByUserId(
+                                currentSession.getUserId()
+                        );
+
+        return new RevokeAllSessionsResponse(
+                revokedCount
+        );
+    }
+
     @Transactional(readOnly = true)
     public AppUser requireUser(
             String rawToken
@@ -264,7 +355,7 @@ public class AuthService {
                         session.getUserId()
                 )
                 .orElseThrow(
-                        this::unauthorized
+                        this::sessionRevoked
                 );
     }
 
@@ -272,14 +363,26 @@ public class AuthService {
     public AppSession requireSession(
             String rawToken
     ) {
-        return sessionRepository
-                .findByTokenHashAndExpiresAtAfter(
-                        sha256(rawToken),
-                        Instant.now()
-                )
-                .orElseThrow(
-                        this::unauthorized
-                );
+        AppSession session =
+                sessionRepository
+                        .findByTokenHash(
+                                sha256(rawToken)
+                        )
+                        .orElseThrow(
+                                this::sessionRevoked
+                        );
+
+        if (!session.getExpiresAt().isAfter(
+                Instant.now()
+        )) {
+            throw new AuthException(
+                    HttpStatus.UNAUTHORIZED,
+                    "SESSION_EXPIRED",
+                    "Your session has expired. Please sign in again."
+            );
+        }
+
+        return session;
     }
 
     public String requireBearerToken(
@@ -291,7 +394,7 @@ public class AuthService {
                         "Bearer "
                 )
         ) {
-            throw unauthorized();
+            throw authenticationRequired();
         }
 
         String token =
@@ -302,7 +405,7 @@ public class AuthService {
                         .trim();
 
         if (token.isBlank()) {
-            throw unauthorized();
+            throw authenticationRequired();
         }
 
         return token;
@@ -315,7 +418,8 @@ public class AuthService {
         Instant now =
                 Instant.now();
 
-        sessionRepository.deleteByExpiresAtBefore(
+        sessionRepository.deleteByUserIdAndExpiresAtBefore(
+                user.getId(),
                 now
         );
 
@@ -447,23 +551,34 @@ public class AuthService {
         }
     }
 
-    private ResponseStatusException invalidCredentials() {
-        return new ResponseStatusException(
+    private AuthException invalidCredentials() {
+        return new AuthException(
                 HttpStatus.UNAUTHORIZED,
+                "INVALID_CREDENTIALS",
                 "Invalid email or password."
         );
     }
 
-    private ResponseStatusException unauthorized() {
-        return new ResponseStatusException(
+    private AuthException authenticationRequired() {
+        return new AuthException(
                 HttpStatus.UNAUTHORIZED,
-                "Authentication is required."
+                "AUTHENTICATION_REQUIRED",
+                "Sign in to continue."
         );
     }
 
-    private ResponseStatusException sessionNotFound() {
-        return new ResponseStatusException(
+    private AuthException sessionRevoked() {
+        return new AuthException(
+                HttpStatus.UNAUTHORIZED,
+                "SESSION_REVOKED",
+                "This session is no longer active. Please sign in again."
+        );
+    }
+
+    private AuthException sessionNotFound() {
+        return new AuthException(
                 HttpStatus.NOT_FOUND,
+                "SESSION_NOT_FOUND",
                 "Session was not found for this account."
         );
     }

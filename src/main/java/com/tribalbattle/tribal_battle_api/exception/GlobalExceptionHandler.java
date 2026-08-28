@@ -1,12 +1,14 @@
 package com.tribalbattle.tribal_battle_api.exception;
 
 import com.tribalbattle.tribal_battle_api.armypreset.exception.ArmyPresetNotFoundException;
+import com.tribalbattle.tribal_battle_api.auth.exception.AuthException;
 import com.tribalbattle.tribal_battle_api.simulationhistory.exception.SimulationHistoryNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,6 +17,41 @@ import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuthException(
+            AuthException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                exception.getStatus(),
+                exception.getCode(),
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleResponseStatusException(
+            ResponseStatusException exception,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = HttpStatus.valueOf(
+                exception.getStatusCode().value()
+        );
+
+        String message = exception.getReason() != null
+                ? exception.getReason()
+                : status.getReasonPhrase();
+
+        return buildResponse(
+                status,
+                null,
+                message,
+                request
+        );
+    }
 
     @ExceptionHandler(SimulationNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleSimulationNotFound(
@@ -133,11 +170,26 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
+        return buildResponse(
+                status,
+                null,
+                message,
+                request
+        );
+    }
+
+    private ResponseEntity<ApiErrorResponse> buildResponse(
+            HttpStatus status,
+            String code,
+            String message,
+            HttpServletRequest request
+    ) {
         ApiErrorResponse response =
                 new ApiErrorResponse(
                         Instant.now(),
                         status.value(),
                         status.name(),
+                        code,
                         message,
                         request.getRequestURI()
                 );

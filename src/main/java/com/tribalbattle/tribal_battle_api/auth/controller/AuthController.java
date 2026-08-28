@@ -3,8 +3,11 @@ package com.tribalbattle.tribal_battle_api.auth.controller;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthSessionInfoResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthUserResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.LoginRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RegisterRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.RevokeAllSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.RevokeOtherSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -182,4 +185,45 @@ public class AuthController {
                 )
         );
     }
+    @PostMapping("/password/change")
+    @Operation(
+            summary = "Change account password and revoke other sessions"
+    )
+    public ResponseEntity<ChangePasswordResponse> changePassword(
+            @Valid
+            @RequestBody
+            ChangePasswordRequest request,
+
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        return ResponseEntity.ok(
+                service.changePassword(
+                        authorizationHeader,
+                        request
+                )
+        );
+    }
+
+    @PostMapping("/sessions/revoke-all")
+    @Operation(
+            summary = "Revoke every active account session"
+    )
+    public ResponseEntity<RevokeAllSessionsResponse> revokeAllSessions(
+            @RequestHeader(
+                    value = HttpHeaders.AUTHORIZATION,
+                    required = false
+            )
+            String authorizationHeader
+    ) {
+        return ResponseEntity.ok(
+                service.revokeAllSessions(
+                        authorizationHeader
+                )
+        );
+    }
+
 }

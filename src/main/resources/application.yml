@@ -28,6 +28,8 @@ app:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   auth:
     session-hours: ${AUTH_SESSION_HOURS:168}
+  cloud:
+    version-retention: ${CLOUD_VERSION_RETENTION:10}
 
 springdoc:
   api-docs:

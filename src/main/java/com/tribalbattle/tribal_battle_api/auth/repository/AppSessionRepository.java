@@ -11,10 +11,7 @@ import java.util.UUID;
 public interface AppSessionRepository
         extends JpaRepository<AppSession, UUID> {
 
-    Optional<AppSession> findByTokenHashAndExpiresAtAfter(
-            String tokenHash,
-            Instant now
-    );
+    Optional<AppSession> findByTokenHash(String tokenHash);
 
     List<AppSession> findByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(
             UUID userId,
@@ -31,11 +28,14 @@ public interface AppSessionRepository
             UUID id
     );
 
+    long deleteByUserId(UUID userId);
+
     void deleteByTokenHash(
             String tokenHash
     );
 
-    void deleteByExpiresAtBefore(
+    void deleteByUserIdAndExpiresAtBefore(
+            UUID userId,
             Instant now
     );
 }

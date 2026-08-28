@@ -6,9 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tribalbattle.tribal_battle_api.auth.entity.AppUser;
 import com.tribalbattle.tribal_battle_api.auth.service.AuthService;
 import com.tribalbattle.tribal_battle_api.cloud.dto.CloudStateResponse;
+import com.tribalbattle.tribal_battle_api.cloud.dto.CloudStateVersionResponse;
+import com.tribalbattle.tribal_battle_api.cloud.dto.RestoreCloudStateRequest;
 import com.tribalbattle.tribal_battle_api.cloud.dto.SaveCloudStateRequest;
 import com.tribalbattle.tribal_battle_api.cloud.entity.UserCloudState;
+import com.tribalbattle.tribal_battle_api.cloud.entity.UserCloudStateVersion;
 import com.tribalbattle.tribal_battle_api.cloud.repository.UserCloudStateRepository;
+import com.tribalbattle.tribal_battle_api.cloud.repository.UserCloudStateVersionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -18,7 +22,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,11 +38,15 @@ public class CloudStateService {
             };
 
     private final UserCloudStateRepository repository;
+    private final UserCloudStateVersionRepository versionRepository;
     private final AuthService authService;
     private final ObjectMapper objectMapper;
 
     @Value("${app.cloud.max-payload-bytes:5242880}")
     private long maxPayloadBytes;
+
+    @Value("${app.cloud.version-retention:10}")
+    private int versionRetention;
 
     @Transactional(readOnly = true)
     public CloudStateResponse get(
@@ -59,6 +70,57 @@ public class CloudStateService {
                         );
 
         return toResponse(state);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CloudStateVersionResponse> versions(
+            String authorizationHeader
+    ) {
+        AppUser user =
+                authenticatedUser(
+                        authorizationHeader
+                );
+
+        UUID userId =
+                user.getId();
+
+        List<CloudStateVersionResponse> versions =
+                new ArrayList<>();
+
+        repository
+                .findById(userId)
+                .ifPresent(
+                        state ->
+                                versions.add(
+                                        new CloudStateVersionResponse(
+                                                state.getRevision(),
+                                                state.getUpdatedAt(),
+                                                true
+                                        )
+                                )
+                );
+
+        versionRepository
+                .findByUserIdOrderByRevisionDesc(userId)
+                .forEach(
+                        version ->
+                                versions.add(
+                                        new CloudStateVersionResponse(
+                                                version.getRevision(),
+                                                version.getSnapshotAt(),
+                                                false
+                                        )
+                                )
+                );
+
+        versions.sort(
+                Comparator.comparingLong(
+                                CloudStateVersionResponse::revision
+                        )
+                        .reversed()
+        );
+
+        return versions;
     }
 
     @Transactional
@@ -94,21 +156,26 @@ public class CloudStateService {
                         ? 0
                         : state.getRevision();
 
-        if (
-                request.expectedRevision() !=
-                        currentRevision
-        ) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Cloud data changed on another device. Refresh before uploading."
-            );
+        requireExpectedRevision(
+                request.expectedRevision(),
+                currentRevision
+        );
+
+        if (state != null) {
+            archive(state);
         }
+
+        long nextRevision =
+                nextRevision(
+                        userId,
+                        state
+                );
 
         if (state == null) {
             state =
                     UserCloudState.builder()
                             .userId(userId)
-                            .revision(1)
+                            .revision(nextRevision)
                             .payload(serialized)
                             .updatedAt(
                                     Instant.now()
@@ -116,7 +183,7 @@ public class CloudStateService {
                             .build();
         } else {
             state.setRevision(
-                    currentRevision + 1
+                    nextRevision
             );
 
             state.setPayload(
@@ -130,6 +197,91 @@ public class CloudStateService {
 
         repository.saveAndFlush(state);
 
+        pruneVersions(userId);
+
+        return toResponse(state);
+    }
+
+    @Transactional
+    public CloudStateResponse restore(
+            String authorizationHeader,
+            long revision,
+            RestoreCloudStateRequest request
+    ) {
+        AppUser user =
+                authenticatedUser(
+                        authorizationHeader
+                );
+
+        UUID userId =
+                user.getId();
+
+        UserCloudState state =
+                repository
+                        .findForUpdate(userId)
+                        .orElse(null);
+
+        long currentRevision =
+                state == null
+                        ? 0
+                        : state.getRevision();
+
+        requireExpectedRevision(
+                request.expectedRevision(),
+                currentRevision
+        );
+
+        UserCloudStateVersion source =
+                versionRepository
+                        .findByUserIdAndRevision(
+                                userId,
+                                revision
+                        )
+                        .orElseThrow(
+                                () -> new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Cloud backup revision was not found."
+                                )
+                        );
+
+        if (state != null) {
+            archive(state);
+        }
+
+        long nextRevision =
+                nextRevision(
+                        userId,
+                        state
+                );
+
+        if (state == null) {
+            state =
+                    UserCloudState.builder()
+                            .userId(userId)
+                            .revision(nextRevision)
+                            .payload(source.getPayload())
+                            .updatedAt(
+                                    Instant.now()
+                            )
+                            .build();
+        } else {
+            state.setRevision(
+                    nextRevision
+            );
+
+            state.setPayload(
+                    source.getPayload()
+            );
+
+            state.setUpdatedAt(
+                    Instant.now()
+            );
+        }
+
+        repository.saveAndFlush(state);
+
+        pruneVersions(userId);
+
         return toResponse(state);
     }
 
@@ -142,8 +294,126 @@ public class CloudStateService {
                         authorizationHeader
                 );
 
-        repository.deleteById(
-                user.getId()
+        UUID userId =
+                user.getId();
+
+        UserCloudState state =
+                repository
+                        .findForUpdate(userId)
+                        .orElse(null);
+
+        if (state == null) {
+            return;
+        }
+
+        archive(state);
+
+        repository.delete(state);
+        repository.flush();
+
+        pruneVersions(userId);
+    }
+
+    private void requireExpectedRevision(
+            long expectedRevision,
+            long currentRevision
+    ) {
+        if (
+                expectedRevision !=
+                        currentRevision
+        ) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Cloud data changed on another device. Refresh before changing cloud data."
+            );
+        }
+    }
+
+    private long nextRevision(
+            UUID userId,
+            UserCloudState current
+    ) {
+        long archivedRevision =
+                versionRepository
+                        .findMaxRevision(userId)
+                        .orElse(0L);
+
+        long currentRevision =
+                current == null
+                        ? 0
+                        : current.getRevision();
+
+        return Math.max(
+                currentRevision,
+                archivedRevision
+        ) + 1;
+    }
+
+    private void archive(
+            UserCloudState state
+    ) {
+        if (
+                versionRepository
+                        .existsByUserIdAndRevision(
+                                state.getUserId(),
+                                state.getRevision()
+                        )
+        ) {
+            return;
+        }
+
+        versionRepository.saveAndFlush(
+                UserCloudStateVersion.builder()
+                        .id(UUID.randomUUID())
+                        .userId(
+                                state.getUserId()
+                        )
+                        .revision(
+                                state.getRevision()
+                        )
+                        .payload(
+                                state.getPayload()
+                        )
+                        .snapshotAt(
+                                state.getUpdatedAt()
+                        )
+                        .archivedAt(
+                                Instant.now()
+                        )
+                        .build()
+        );
+    }
+
+    private void pruneVersions(
+            UUID userId
+    ) {
+        int retention =
+                Math.max(
+                        1,
+                        Math.min(
+                                versionRetention,
+                                50
+                        )
+                );
+
+        List<UserCloudStateVersion> versions =
+                versionRepository
+                        .findByUserIdOrderByRevisionDesc(
+                                userId
+                        );
+
+        if (
+                versions.size() <=
+                        retention
+        ) {
+            return;
+        }
+
+        versionRepository.deleteAllInBatch(
+                versions.subList(
+                        retention,
+                        versions.size()
+                )
         );
     }
 
