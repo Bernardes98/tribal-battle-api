@@ -35,3 +35,6 @@ databaseChangeLog:
 
   - include:
       file: db/changelog/changes/012-intelligence-server-side.yaml
+
+  - include:
+      file: db/changelog/changes/013-production-hardening.yaml

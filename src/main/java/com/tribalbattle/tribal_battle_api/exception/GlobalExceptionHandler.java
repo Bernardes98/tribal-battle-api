@@ -3,6 +3,7 @@ package com.tribalbattle.tribal_battle_api.exception;
 import com.tribalbattle.tribal_battle_api.armypreset.exception.ArmyPresetNotFoundException;
 import com.tribalbattle.tribal_battle_api.auth.exception.AuthException;
 import com.tribalbattle.tribal_battle_api.simulationhistory.exception.SimulationHistoryNotFoundException;
+import com.tribalbattle.tribal_battle_api.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -12,9 +13,11 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -158,6 +161,13 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        log.error(
+                "unhandled_exception requestId={} path={}",
+                RequestIdFilter.getRequestId(request),
+                request.getRequestURI(),
+                exception
+        );
+
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred",
@@ -191,7 +201,8 @@ public class GlobalExceptionHandler {
                         status.name(),
                         code,
                         message,
-                        request.getRequestURI()
+                        request.getRequestURI(),
+                        RequestIdFilter.getRequestId(request)
                 );
 
         return ResponseEntity

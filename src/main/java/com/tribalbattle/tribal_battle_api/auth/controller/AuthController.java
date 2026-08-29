@@ -5,11 +5,16 @@ import com.tribalbattle.tribal_battle_api.auth.dto.AuthSessionInfoResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.AuthUserResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.ChangePasswordResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.ForgotPasswordRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.ForgotPasswordResponse;
+import com.tribalbattle.tribal_battle_api.auth.dto.ResetPasswordRequest;
+import com.tribalbattle.tribal_battle_api.auth.dto.ResetPasswordResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.LoginRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RegisterRequest;
 import com.tribalbattle.tribal_battle_api.auth.dto.RevokeAllSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.dto.RevokeOtherSessionsResponse;
 import com.tribalbattle.tribal_battle_api.auth.service.AuthService;
+import com.tribalbattle.tribal_battle_api.auth.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -39,6 +44,7 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService service;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @Operation(
@@ -205,6 +211,36 @@ public class AuthController {
                         authorizationHeader,
                         request
                 )
+        );
+    }
+
+    @PostMapping("/password/forgot")
+    @Operation(
+            summary = "Request password reset email"
+    )
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(
+            @Valid
+            @RequestBody
+            ForgotPasswordRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(
+                        passwordResetService.requestReset(request)
+                );
+    }
+
+    @PostMapping("/password/reset")
+    @Operation(
+            summary = "Reset account password using an emailed token"
+    )
+    public ResponseEntity<ResetPasswordResponse> resetPassword(
+            @Valid
+            @RequestBody
+            ResetPasswordRequest request
+    ) {
+        return ResponseEntity.ok(
+                passwordResetService.resetPassword(request)
         );
     }
 

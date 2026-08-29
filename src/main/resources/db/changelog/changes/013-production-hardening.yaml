@@ -1,0 +1,28 @@
+databaseChangeLog:
+
+  - changeSet:
+      id: 013-production-hardening
+      author: tribal-battle
+      changes:
+
+        - createIndex:
+            tableName: simulation_history
+            indexName: idx_simulation_history_user_source_created
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: source
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: intelligence_report
+            indexName: idx_intelligence_report_user_source_observed
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: source
+              - column:
+                  name: observed_at
