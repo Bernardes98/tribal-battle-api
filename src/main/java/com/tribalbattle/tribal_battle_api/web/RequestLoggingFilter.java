@@ -19,6 +19,17 @@ import java.util.concurrent.TimeUnit;
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilter(
+            HttpServletRequest request
+    ) {
+        return request
+                .getRequestURI()
+                .startsWith(
+                        "/actuator/health"
+                );
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
