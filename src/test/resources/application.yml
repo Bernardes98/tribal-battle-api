@@ -7,10 +7,8 @@ spring:
 
   jpa:
     open-in-view: false
-
     hibernate:
       ddl-auto: create-drop
-
     properties:
       hibernate:
         format_sql: false
@@ -20,12 +18,52 @@ spring:
   liquibase:
     enabled: false
 
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+            required: false
+
 app:
   frontend-origin: http://localhost:5173
+  frontend-origins: http://localhost:5173
+  frontend-base-url: http://localhost:5173
+
+  auth:
+    session-hours: 168
+    password-reset-minutes: 30
+
+  cloud:
+    version-retention: 10
+
+  mail:
+    from: no-reply@test.local
+
+  http:
+    max-request-bytes: 12582912
+    trust-forwarded-for: false
+
+  rate-limit:
+    enabled: false
+    login-per-minute: 1000
+    register-per-minute: 1000
+    password-reset-per-15-minutes: 1000
+    shared-create-per-minute: 1000
+
+management:
+  health:
+    mail:
+      enabled: false
 
 springdoc:
   api-docs:
     enabled: false
-
   swagger-ui:
     enabled: false
